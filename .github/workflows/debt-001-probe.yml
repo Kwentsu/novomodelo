@@ -1,0 +1,37 @@
+name: DEBT-001 probe
+
+on:
+  push:
+    branches: ["probe/**"]
+
+jobs:
+  lib-tests:
+    name: sddp lib tests (${{ matrix.profile }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [debug, release]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: cargo test -p novomodelo-sddp --lib
+        shell: bash
+        run: |
+          flag=""
+          if [ "${{ matrix.profile }}" = "release" ]; then flag="--release"; fi
+          cargo test -p novomodelo-sddp --lib $flag 2>&1 | tee test.log
+      - name: Target test in the log
+        if: always()
+        shell: bash
+        run: |
+          echo "--- useful_volume_fold_unresolvable_hydro_id_fires_debug_assert:"
+          grep -n "useful_volume_fold_unresolvable_hydro_id_fires_debug_assert" test.log || echo "(not compiled in this profile)"
+          echo "--- summary:"
+          grep -n "^test result:" test.log || true
+          echo "--- compiler warnings:"
+          grep -n -A3 "^warning" test.log || echo "(no warnings)"
+          echo "--- failures:"
+          sed -n '/^failures:$/,/^test result:/p' test.log || true
